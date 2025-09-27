@@ -10,13 +10,13 @@ InuSoft API is a modern REST API implementation that automatically loads endpoin
 
 ## Features
 
-· 🔄 Auto-Loading Endpoints: Automatically registers API endpoints from file structure
-· 📚 Beautiful Documentation: Interactive API documentation with search functionality
-· 🎨 Consistent Styling: Elegant UI with gradient themes and responsive design
-· 🔧 Service Layer Architecture: Separated business logic for maintainability
-· 📊 Request Logging: Automatic API request logging with response times
-· 🚀 Error Handling: Custom 404 and 500 error pages with helpful UX
-· ⚡ Lightweight: Minimal dependencies and fast performance
+- 🔄 Auto-Loading Endpoints: Automatically registers API endpoints from file structure
+- 📚 Beautiful Documentation: Interactive API documentation with search functionality
+- 🎨 Consistent Styling: Elegant UI with gradient themes and responsive design
+- 🔧 Service Layer Architecture: Separated business logic for maintainability
+- 📊 Request Logging: Automatic API request logging with response times
+- 🚀 Error Handling: Custom 404 and 500 error pages with helpful UX
+- ⚡ Lightweight: Minimal dependencies and fast performance
 
 ## Project Structure
 
@@ -176,9 +176,9 @@ Setup and Installation
    npm run dev
    ```
 4. Access the API
-   · API Documentation: http://localhost:3000
-   · API Endpoints: http://localhost:3000/api/ai/gpt
-   · OpenAPI Spec: http://localhost:3000/api/openapi.json
+- API Documentation: http://localhost:3000
+- API Endpoints: http://localhost:3000/api/ai/gpt
+- OpenAPI Spec: http://localhost:3000/api/openapi.json
 
 ## Vercel Deployment
 
@@ -236,7 +236,7 @@ export default {
 
 2. The endpoint will be automatically available at:
 
-· GET /api/weather/forecast?city=London&days=5
+- GET /api/weather/forecast?city=London&days=5
 
 ## API Response Format
 All successful responses follow this format:
@@ -266,9 +266,9 @@ Error responses:
 ## Error Handling
 The API includes comprehensive error handling:
 
-· 400 Bad Request: Invalid parameters
-· 404 Not Found: Endpoint not found
-· 500 Internal Server Error: Server-side errors
+- 400 Bad Request: Invalid parameters
+- 404 Not Found: Endpoint not found
+- 500 Internal Server Error: Server-side errors
 
 Custom error pages are served for web requests.
 
@@ -286,15 +286,15 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Support
 
-· 📧 Email: admin@inusoft.xyz
-· 💬 Telegram: t.me/synshin9
+- 📧 Email: admin@inusoft.xyz
+- 💬 Telegram: t.me/synshin9
 
 ## Acknowledgments
 
-· Built with Express.js
-· Styled with Tailwind CSS
-· Icons from Material Icons
-· Fonts from Google Fonts
+- Built with Express.js
+- Styled with Tailwind CSS
+- Icons from Material Icons
+- Fonts from Google Fonts
 
 ---
 
