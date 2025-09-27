@@ -1,8 +1,8 @@
 import axios from "axios";
 
 export default {
-  name: "Blue Archive",
-  description: "Random image from Blue Archive game",
+  name: "Loli Archive",
+  description: "Random image from Loli Archive",
   category: "Random",
   methods: ["GET"],
   params: [],
@@ -10,7 +10,7 @@ export default {
   async run(req, res) {
     try {
       const { data } = await axios.get(
-        "https://raw.githubusercontent.com/synshin9/blue-archive-r-img/refs/heads/main/links.json"
+        "https://raw.githubusercontent.com/synshin9/loli-r-img/refs/heads/main/links.json"
       );
 
       const randomUrl = data[Math.floor(data.length * Math.random())];
