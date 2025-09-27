@@ -4,7 +4,7 @@ export default {
   name: "GPT Chat",
   description: "Endpoint untuk chat dengan GPT",
   category: "AI",
-  methods: ["POST", "GET"],
+  methods: ["GET", "POST"],
   params: ["question", "prompt"],
   paramsSchema: {
     question: { type: "string", required: true, minLength: 1 },
