@@ -36,6 +36,7 @@
   "homepage": "https://github.com/synshin9/Restfull-Api#readme",
   "dependencies": {
     "axios": "^1.6.8",
+    "dotenv" "^17.2.2",
     "express": "^4.19.2"
   },
   "devDependencies": {
