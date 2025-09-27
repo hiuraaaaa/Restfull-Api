@@ -164,7 +164,7 @@ Setup and Installation
 
 1. Clone the repository
    ```bash
-   git clone https://github.com/yourusername/Restfull-Api.git
+   git clone https://github.com/synshin9/Restfull-Api.git
    cd Restfull-Api
    ```
 2. Install dependencies
