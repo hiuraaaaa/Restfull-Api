@@ -1,0 +1,46 @@
+{
+  "name": "Restfull-Api",
+  "version": "1.0.0",
+  "description": "A minimalist REST API boilerplate built with Express.js — fast, lightweight, and extensible.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "lint": "eslint .",
+    "test": "jest"
+  },
+  "keywords": [
+    "express",
+    "rest-api",
+    "api",
+    "backend",
+    "boilerplate",
+    "framework",
+    "json",
+    "plugin",
+    "minimalist"
+  ],
+  "author": {
+    "name": "synshin9",
+    "url": "https://github.com/synshin9"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/synshin9/Restfull-Api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/synshin9/Restfull-Api/issues"
+  },
+  "homepage": "https://github.com/synshin9/Restfull-Api#readme",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.0"
+  }
+}
