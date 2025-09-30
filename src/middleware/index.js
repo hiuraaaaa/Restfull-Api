@@ -1,5 +1,6 @@
 import express from "express";
 import logApiRequest from "../utils/logApiRequest.js";
+import rateLimiter from "./rateLimiter.js";
 
 /**
  * Configures and applies all middleware for the Express application
@@ -47,6 +48,13 @@ export default function setupMiddleware(app) {
    * @description Logs details of incoming API requests including method, path, IP, etc.
    */
   app.use(logApiRequest);
+  
+  /**
+   * RateLimiter API request logging middleware
+   * @middleware rateLimiter
+   * @description Logs details of incoming API requests including IP.
+   */
+  app.use(rateLimiter.middleware);
   
   /**
    * Static file serving middleware

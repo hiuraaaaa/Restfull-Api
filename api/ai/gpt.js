@@ -2,7 +2,7 @@ import GptService from "../../src/services/ai/gptService.js";
 
 export default {
   name: "GPT Chat",
-  description: "Endpoint untuk chat dengan GPT",
+  description: "Endpoint for chat with GPT",
   category: "AI",
   methods: ["GET", "POST"],
   params: ["question", "prompt"],

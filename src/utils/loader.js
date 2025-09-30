@@ -78,7 +78,7 @@ export default async function loadEndpoints(dir, app) {
         const module = (await import(pathToFileURL(fullPath))).default;
 
         // Check if the module has the required run function
-        if (typeof module.run === "function") {
+        if (typeof module.run === "function" || Array.isArray(module.run)) {
           /**
            * Generate the route path from the file system structure
            * @type {string}
@@ -105,9 +105,11 @@ export default async function loadEndpoints(dir, app) {
              * @param {string} routePath - The URL path for the endpoint
              * @param {Function} handler - The endpoint handler function
              */
-            app[method.toLowerCase()](routePath, (req, res) => 
-              module.run(req, res)
-            );
+            if (Array.isArray(module.run)) {
+              app[method.toLowerCase()](routePath, ...module.run);
+            } else {
+              app[method.toLowerCase()](routePath, (req, res) => module.run(req, res));
+            }
           }
 
           // Log successful endpoint loading

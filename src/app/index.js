@@ -6,8 +6,9 @@ import { fileURLToPath } from "url";
 import logger from "../utils/logger.js";
 import logApiRequest from "../utils/logApiRequest.js";
 import loadEndpoints from "../utils/loader.js";
-import setupMiddleware from "./middleware.js";
+import setupMiddleware from "../middleware/index.js";
 import setupResponseFormatter from "./responseFormatter.js";
+import rateLimiter from '../middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -92,6 +93,30 @@ function setupRoutes(app, endpoints) {
       endpoints: enrichedEndpoints,
     });
   });
+
+  /**
+   * POST /admin/unban
+   * @name POST /admin/unban
+   * @description Unbans a previously blocked IP address. Requires valid admin key.
+   * @route {POST} /admin/unban
+   * @param {express.Request} req - Express request object containing `ip` in body or query
+   * @param {express.Response} res - Express response object
+   * @bodyParam {string} ip - The IP address to unban (required)
+   * @header {string} X-Admin-Key - Admin key for authentication
+   * @returns {Object} JSON response indicating success or failure
+   * @example
+   * // Request body
+   * {
+   *   "ip": "1.2.3.4"
+   * }
+   * 
+   * // Response
+   * {
+   *   "success": true,
+   *   "message": "IP 1.2.3.4 unbanned."
+   * }
+   */
+  app.post("/admin/unban", express.json(), rateLimiter.adminUnbanHandler);
 
   /**
    * GET /
