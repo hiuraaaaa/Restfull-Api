@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import express from "express";
+import crypto from "crypto";
+import multer from "multer";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -12,6 +15,13 @@ import rateLimiter from '../middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const uploadDir = path.join(process.cwd(), "files");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
+// use multer to handle upload buffer
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 /**
  * Express application instance
@@ -117,7 +127,7 @@ function setupRoutes(app, endpoints) {
    * }
    */
   app.post("/admin/unban", express.json(), rateLimiter.adminUnbanHandler);
-
+  
   /**
    * GET /
    * @name GET /
@@ -130,33 +140,43 @@ function setupRoutes(app, endpoints) {
   app.get('/', (req, res) => {
     res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
   });
-
+  
   /**
-   * 404 Error Handler
-   * @name 404 Handler
-   * @description Handles requests to non-existent routes
-   * @param {express.Request} req - Express request object
-   * @param {express.Response} res - Express response object
-   * @returns {file} Sends the 404.html file with 404 status code
+   * POST /files/upload
+   * @description Upload file ke server (disimpan sementara di folder "files")
+   * @route {POST} /files/upload
+   * @param {Buffer} file - File binary dikirim lewat form-data field "file"
+   * @returns {Object} JSON berisi URL akses file
    */
-  app.use((req, res) => {
-      logger.info(`404: ${req.method} ${req.path}`);
-      res.status(404).sendFile(path.join(process.cwd(), 'public', '404.html'));
+  app.post("/files/upload", upload.single("file"), (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+    // create random hex name
+    const randomName = crypto.randomBytes(16).toString("hex") + path.extname(req.file.originalname);
+    const filePath = path.join(uploadDir, randomName);
+    // save file
+    fs.writeFileSync(filePath, req.file.buffer);
+    const fileUrl = `${req.protocol}://${req.get("host")}/files/${randomName}`;
+    res.json({ url: fileUrl });
+    // auto delete after 5 minutes
+    setTimeout(() => {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }, 5 * 60 * 1000);
   });
 
   /**
-   * Global Error Handler
-   * @name Error Handler
-   * @description Handles all uncaught errors in the application
-   * @param {Error} err - The error object
-   * @param {express.Request} req - Express request object
-   * @param {express.Response} res - Express response object
-   * @param {express.NextFunction} next - Express next function
-   * @returns {file} Sends the 500.html file with 500 status code
+   * GET /files/:filename
+   * @description Access uploaded files
+   * @route {GET} /files/:filename
+   * @returns {file} Sending the requested files
    */
-  app.use((err, req, res, next) => {
-      logger.error(`500: ${err.message}`);
-      res.status(500).sendFile(path.join(process.cwd(), 'public', '500.html'));
+  app.get("/files/:filename", (req, res) => {
+      const filePath = path.join(uploadDir, req.params.filename);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: "File not found or expired" });
+      }
+      res.sendFile(filePath);
   });
 }
 
