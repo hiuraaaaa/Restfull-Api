@@ -106,10 +106,12 @@ export default {
       }, 5 * 60 * 1000);
 
       res.json({
-        url: fileUrl,
-        filename: randomName,
-        mimetype: "image/png",
-        size: buffer.length,
+        results: {
+          url: fileUrl,
+          filename: randomName,
+          mimetype: "image/png",
+          size: buffer.length,
+        },
         dimensions: {
           width: canvas.width,
           height: canvas.height
