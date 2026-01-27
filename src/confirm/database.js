@@ -1,4 +1,4 @@
-const { neon } = require('@neondatabase/serverless');
+import { neon } from '@neondatabase/serverless';
 
 let db;
 
@@ -15,7 +15,7 @@ if (process.env.DATABASE_URL) {
                 pgText = pgText.replace(/\?/g, () => `$${paramIndex++}`);
                 
                 const result = await sql(pgText, params);
-                return [result]; // Return format [rows, fields]
+                return [result]; // Return format [rows]
             } catch (error) {
                 console.error('Database query error:', error);
                 throw error;
@@ -23,18 +23,11 @@ if (process.env.DATABASE_URL) {
         }
     };
 } else {
-    // Development - MySQL (optional)
-    const mysql = require('mysql2/promise');
-    const pool = mysql.createPool({
-        host: process.env.DB_HOST || 'localhost',
-        user: process.env.DB_USER || 'root',
-        password: process.env.DB_PASS || '',
-        database: process.env.DB_NAME || 'api_system',
-        waitForConnections: true,
-        connectionLimit: 10,
-    });
-    
-    db = pool;
+    // Fallback jika butuh MySQL untuk dev local
+    console.warn('DATABASE_URL not found, using mock database');
+    db = {
+        query: async () => [[]]
+    };
 }
 
-module.exports = db;
+export default db;
