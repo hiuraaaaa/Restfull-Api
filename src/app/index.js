@@ -111,7 +111,7 @@ function setupRoutes(app, endpoints) {
     });
 
     res.status(200).json({
-      title: "InuSoft API's.",
+      title: "Lumina API's.",
       description: "Welcome to the API documentation. This interactive interface allows you to explore and test our API endpoints in real-time.",
       baseURL,
       endpoints: enrichedEndpoints,
