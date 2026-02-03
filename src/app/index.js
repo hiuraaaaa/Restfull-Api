@@ -42,6 +42,7 @@ setupResponseFormatter(app);
  * @type {Array<Object>}
  */
 let allEndpoints = [];
+let isInitialized = false;
 
 /**
  * Initializes the API server by loading endpoints and setting up routes
@@ -49,7 +50,7 @@ let allEndpoints = [];
  * @function initializeAPI
  * @returns {Promise<void>}
  */
-(async function initializeAPI() {
+const initPromise = (async function initializeAPI() {
   logger.info("Starting server initialization...");
   logger.info("Loading API endpoints...");
 
@@ -58,7 +59,20 @@ let allEndpoints = [];
   logger.ready(`Loaded ${allEndpoints.length} endpoints`);
 
   setupRoutes(app, allEndpoints);
+  
+  isInitialized = true;
+  logger.ready("Server initialization complete");
 })();
+
+/**
+ * Middleware to ensure initialization is complete before handling requests
+ */
+app.use(async (req, res, next) => {
+  if (!isInitialized) {
+    await initPromise;
+  }
+  next();
+});
 
 /**
  * Sets up all routes for the Express application including API documentation and error handling
