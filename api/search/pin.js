@@ -19,8 +19,8 @@ const fetchPinterest = async (query) => {
 };
 
 export default {
-  name: "Pinterest Scraper",
-  description: "Scrape gambar dari Pinterest menggunakan Faa API",
+  name: "Pinterest",
+  description: "Pin",
   category: "Search",
   methods: ["GET", "POST"],
   params: ["query", "limit"],
