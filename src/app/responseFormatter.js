@@ -86,7 +86,7 @@ export default function setupResponseFormatter(app) {
            * Developer attribution credit
            * @type {string}
            */
-          responseData.attribution = "@synshin9";
+          responseData.attribution = "@hiura";
         }
 
         // Call the original json method with the formatted data
