@@ -12,6 +12,11 @@
       "dest": "/index.js"
     }
   ],
+  "functions": {
+    "index.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "env": {
     "NODE_ENV": "production"
   }
