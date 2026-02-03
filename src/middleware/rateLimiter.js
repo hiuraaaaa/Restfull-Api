@@ -1,317 +1,254 @@
-/**
- * @file Rate limiting middleware with IP banning capabilities
- * @module rateLimiter
- * @description Provides rate limiting functionality with persistent IP banning, 
- * request logging, and admin management features.
- */
-import 'dotenv/config';
 import fs from "fs";
 import path from "path";
 
 /**
- * Directory path for data storage
- * @constant {string}
+ * Rate Limiter Middleware with IP Blocking and Admin Unban
+ * 
+ * Features:
+ * - Tracks request counts per IP
+ * - Blocks IPs exceeding rate limit
+ * - Persistent storage in /tmp (Vercel compatible)
+ * - Admin unban endpoint
+ * - Auto-cleanup of old data
  */
-const DATA_DIR = path.join(process.cwd(), "data");
+
+// Use /tmp for Vercel serverless environment (read-only filesystem workaround)
+const DATA_DIR = '/tmp/data';
+const RATE_FILE = path.join(DATA_DIR, 'rate.json');
+const BAN_FILE = path.join(DATA_DIR, 'ban.json');
+
+const MAX_REQUESTS = 100;
+const WINDOW_MS = 60 * 1000; // 1 minute
+const BAN_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 /**
- * Directory path for log files
- * @constant {string}
- */
-const LOG_DIR = path.join(process.cwd(), "logs");
-
-/**
- * File path for banned IPs storage
- * @constant {string}
- */
-const BANNED_FILE = path.join(DATA_DIR, "banned-ips.json");
-
-/**
- * File path for request logs
- * @constant {string}
- */
-const REQUEST_LOG = path.join(LOG_DIR, "request-logs.log");
-
-/**
- * Time window for rate limiting in milliseconds (default: 10 seconds)
- * @constant {number}
- */
-const WINDOW_MS = 10 * 1000;
-
-/**
- * Maximum number of requests allowed per time window (default: 25)
- * @constant {number}
- */
-const MAX_REQUESTS = 25;
-
-/**
- * Interval for cleaning up old timestamps in milliseconds (default: 60 seconds)
- * @constant {number}
- */
-const CLEANUP_INTERVAL_MS = 60 * 1000;
-
-/**
- * Map storing IP addresses and their request timestamps
- * @type {Map<string, number[]>}
- */
-const ipTimestamps = new Map();
-
-/**
- * Object storing banned IP information loaded from file
- * @type {Object}
- * @property {string} bannedAt - ISO timestamp when IP was banned
- * @property {string} reason - Reason for banning
- * @property {string} by - Entity that performed the ban
- */
-let banned = {};
-
-/**
- * Ensures required directories and files exist
- * @function ensureFiles
+ * Ensures data directory and files exist
  */
 function ensureFiles() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-  if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR);
-  if (!fs.existsSync(BANNED_FILE)) fs.writeFileSync(BANNED_FILE, JSON.stringify({}, null, 2));
-  if (!fs.existsSync(REQUEST_LOG)) fs.writeFileSync(REQUEST_LOG, "");
-}
-ensureFiles();
-
-/**
- * Loads banned IP list from disk storage
- * @function loadBanned
- */
-function loadBanned() {
-  try {
-    const raw = fs.readFileSync(BANNED_FILE, "utf8");
-    banned = raw ? JSON.parse(raw) : {};
-  } catch (err) {
-    console.error("Failed to load banned ips file:", err);
-    banned = {};
+  // Create directory if it doesn't exist
+  if (!fs.existsSync(DATA_DIR)) {
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    } catch (err) {
+      console.warn('Could not create data directory:', err.message);
+    }
   }
-}
-loadBanned();
-
-/**
- * Saves banned IP list to disk storage
- * @function saveBanned
- */
-function saveBanned() {
-  try {
-    fs.writeFileSync(BANNED_FILE, JSON.stringify(banned, null, 2));
-  } catch (err) {
-    console.error("Failed to save banned ips file:", err);
+  
+  // Create rate.json if it doesn't exist
+  if (!fs.existsSync(RATE_FILE)) {
+    try {
+      fs.writeFileSync(RATE_FILE, JSON.stringify({}));
+    } catch (err) {
+      console.warn('Could not create rate file:', err.message);
+    }
+  }
+  
+  // Create ban.json if it doesn't exist
+  if (!fs.existsSync(BAN_FILE)) {
+    try {
+      fs.writeFileSync(BAN_FILE, JSON.stringify({}));
+    } catch (err) {
+      console.warn('Could not create ban file:', err.message);
+    }
   }
 }
 
+// Initialize files (with error handling for serverless)
+try {
+  ensureFiles();
+} catch (err) {
+  console.warn('Rate limiter initialization warning:', err.message);
+}
+
 /**
- * Appends a log entry to the request log file
- * @function appendLog
- * @param {string} line - The log line to append
+ * Read JSON file with fallback
  */
-function appendLog(line) {
+function readJSON(filePath) {
   try {
-    fs.appendFileSync(REQUEST_LOG, line + "\n");
+    if (!fs.existsSync(filePath)) return {};
+    const data = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(data);
   } catch (err) {
-    console.error("Failed to append request log:", err);
+    console.warn(`Error reading ${filePath}:`, err.message);
+    return {};
   }
 }
 
 /**
- * Bans an IP address permanently with specified reason
- * @function banIp
- * @param {string} ip - IP address to ban
- * @param {string} [reason="rate_limit_exceeded"] - Reason for banning
+ * Write JSON file with error handling
  */
-function banIp(ip, reason = "rate_limit_exceeded") {
-  const now = new Date().toISOString();
-  banned[ip] = {
-    bannedAt: now,
-    reason,
-    by: "rateLimiter",
-  };
-  saveBanned();
-  appendLog(`[BAN] ${now} ${ip} reason=${reason}`);
+function writeJSON(filePath, data) {
+  try {
+    ensureFiles(); // Ensure directory exists before writing
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.warn(`Error writing ${filePath}:`, err.message);
+  }
 }
 
 /**
- * Removes an IP address from the banned list
- * @function unbanIp
- * @param {string} ip - IP address to unban
- * @returns {boolean} True if IP was unbanned, false if IP wasn't found
+ * Get client IP from request
  */
-function unbanIp(ip) {
+function getClientIP(req) {
+  return req.ip || 
+         req.headers['x-forwarded-for']?.split(',')[0].trim() || 
+         req.headers['x-real-ip'] || 
+         req.connection.remoteAddress || 
+         'unknown';
+}
+
+/**
+ * Rate limiter middleware
+ */
+function rateLimiter(req, res, next) {
+  const ip = getClientIP(req);
+  const now = Date.now();
+
+  // Check if IP is banned
+  const banned = readJSON(BAN_FILE);
   if (banned[ip]) {
-    const now = new Date().toISOString();
-    delete banned[ip];
-    saveBanned();
-    appendLog(`[UNBAN] ${now} ${ip}`);
-    return true;
+    const banExpiry = banned[ip];
+    if (now < banExpiry) {
+      const remainingMs = banExpiry - now;
+      const remainingMin = Math.ceil(remainingMs / 60000);
+      return res.status(429).json({
+        success: false,
+        message: `Your IP is temporarily banned. Try again in ${remainingMin} minute(s).`,
+        bannedUntil: new Date(banExpiry).toISOString()
+      });
+    } else {
+      // Ban expired, remove it
+      delete banned[ip];
+      writeJSON(BAN_FILE, banned);
+    }
   }
-  return false;
+
+  // Rate limiting logic
+  const rates = readJSON(RATE_FILE);
+  
+  if (!rates[ip]) {
+    rates[ip] = { count: 1, firstRequest: now };
+  } else {
+    const elapsed = now - rates[ip].firstRequest;
+    
+    if (elapsed > WINDOW_MS) {
+      // Reset window
+      rates[ip] = { count: 1, firstRequest: now };
+    } else {
+      rates[ip].count++;
+      
+      if (rates[ip].count > MAX_REQUESTS) {
+        // Ban the IP
+        banned[ip] = now + BAN_DURATION_MS;
+        writeJSON(BAN_FILE, banned);
+        
+        return res.status(429).json({
+          success: false,
+          message: `Rate limit exceeded. You are banned for 15 minutes.`,
+          bannedUntil: new Date(banned[ip]).toISOString()
+        });
+      }
+    }
+  }
+  
+  writeJSON(RATE_FILE, rates);
+  
+  // Add rate limit headers
+  const remaining = Math.max(0, MAX_REQUESTS - rates[ip].count);
+  res.setHeader('X-RateLimit-Limit', MAX_REQUESTS);
+  res.setHeader('X-RateLimit-Remaining', remaining);
+  res.setHeader('X-RateLimit-Reset', new Date(rates[ip].firstRequest + WINDOW_MS).toISOString());
+  
+  next();
 }
 
 /**
- * Cleans up old timestamps beyond the current time window
- * @function cleanup
+ * Admin unban handler
+ */
+function adminUnbanHandler(req, res) {
+  const adminKey = req.headers['x-admin-key'] || req.query.key;
+  const expectedKey = process.env.ADMIN_KEY;
+
+  if (!expectedKey) {
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Admin key not configured on server' 
+    });
+  }
+
+  if (adminKey !== expectedKey) {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Invalid admin key' 
+    });
+  }
+
+  const ipToUnban = req.body?.ip || req.query?.ip;
+  
+  if (!ipToUnban) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'IP address is required' 
+    });
+  }
+
+  const banned = readJSON(BAN_FILE);
+  
+  if (!banned[ipToUnban]) {
+    return res.status(404).json({ 
+      success: false, 
+      message: `IP ${ipToUnban} is not currently banned` 
+    });
+  }
+
+  delete banned[ipToUnban];
+  writeJSON(BAN_FILE, banned);
+
+  // Also clear rate limit data
+  const rates = readJSON(RATE_FILE);
+  delete rates[ipToUnban];
+  writeJSON(RATE_FILE, rates);
+
+  return res.json({ 
+    success: true, 
+    message: `IP ${ipToUnban} has been unbanned successfully` 
+  });
+}
+
+/**
+ * Cleanup old entries (optional - can be called periodically)
  */
 function cleanup() {
   const now = Date.now();
-  for (const [ip, arr] of ipTimestamps.entries()) {
-    const filtered = arr.filter((t) => now - t <= WINDOW_MS);
-    if (filtered.length === 0) ipTimestamps.delete(ip);
-    else ipTimestamps.set(ip, filtered);
-  }
-}
-
-// Run periodic cleanup
-setInterval(cleanup, CLEANUP_INTERVAL_MS);
-
-/**
- * Rate limiter middleware factory function
- * @function rateLimiterMiddleware
- * @param {Object} [options={}] - Configuration options
- * @param {number} [options.maxRequests=MAX_REQUESTS] - Maximum requests per window
- * @param {number} [options.windowMs=WINDOW_MS] - Time window in milliseconds
- * @returns {Function} Express middleware function
- */
-function rateLimiterMiddleware(options = {}) {
-  const maxReq = options.maxRequests || MAX_REQUESTS;
-  const windowMs = options.windowMs || WINDOW_MS;
-
-  return (req, res, next) => {
-    // Dapatkan IP (Express menggunakan trust proxy jika dikonfig sebelumnya di index.js)
-    const ip = req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress || "unknown";
-
-    // Kalau sudah dibanned -> langsung blokir
-    if (banned[ip]) {
-      const info = banned[ip];
-      res.status(403).json({
-        success: false,
-        error: "Your IP has been blocked due to abuse or rate limit violations.",
-        note: "Contact the owner to request unblocking.",
-        bannedAt: info.bannedAt,
-        reason: info.reason,
-      });
-      appendLog(`[BLOCKED_REQ] ${new Date().toISOString()} ${ip} path=${req.path} method=${req.method} - blocked`);
-      return;
+  
+  // Cleanup expired bans
+  const banned = readJSON(BAN_FILE);
+  let changed = false;
+  for (const ip in banned) {
+    if (now >= banned[ip]) {
+      delete banned[ip];
+      changed = true;
     }
-
-    // Simpan timestamp
-    const now = Date.now();
-    const arr = ipTimestamps.get(ip) || [];
-    arr.push(now);
-
-    // Buang timestamp yang lebih tua dari window
-    const recent = arr.filter((t) => now - t <= windowMs);
-    ipTimestamps.set(ip, recent);
-
-    // Logging minimal (append)
-    appendLog(`[REQ] ${new Date().toISOString()} ${ip} ${req.method} ${req.path} count=${recent.length}`);
-
-    if (recent.length > maxReq) {
-      // Langsung ban IP
-      banIp(ip, `exceeded_${maxReq}_per_${windowMs}ms`);
-      res.status(429).json({
-        success: false,
-        error: `Rate limit exceeded - your IP has been blocked. Max ${maxReq} requests per ${windowMs/1000}s.`,
-        note: "Contact the owner to request unblocking.",
-      });
-      return;
+  }
+  if (changed) writeJSON(BAN_FILE, banned);
+  
+  // Cleanup old rate entries
+  const rates = readJSON(RATE_FILE);
+  changed = false;
+  for (const ip in rates) {
+    if (now - rates[ip].firstRequest > WINDOW_MS) {
+      delete rates[ip];
+      changed = true;
     }
-
-    next();
-  };
-}
-
-/**
- * Admin handler for unbanning IP addresses
- * @function adminUnbanHandler
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @returns {void}
- */
-function adminUnbanHandler(req, res) {
-  const adminKey = process.env.ADMIN_KEY || null;
-  const provided = req.headers["x-admin-key"] || req.body?.adminKey || req.query?.adminKey;
-
-  if (!adminKey) {
-    return res.status(500).json({ success: false, error: "ADMIN_KEY not configured on server." });
   }
-
-  if (!provided || provided !== adminKey) {
-    return res.status(401).json({ success: false, error: "Unauthorized. Provide valid admin key in X-Admin-Key header." });
-  }
-
-  const { ip } = req.body;
-  if (!ip) return res.status(400).json({ success: false, error: "Provide ip in request body to unban." });
-
-  const ok = unbanIp(ip);
-  if (ok) return res.json({ success: true, message: `IP ${ip} unbanned.` });
-  return res.status(404).json({ success: false, error: `IP ${ip} not found in ban list.` });
+  if (changed) writeJSON(RATE_FILE, rates);
 }
 
-/**
- * Returns the current banned IP list
- * @function getBannedList
- * @returns {Object} Object containing banned IP information
- */
-function getBannedList() {
-  return banned;
-}
+// Run cleanup every 5 minutes (optional)
+setInterval(cleanup, 5 * 60 * 1000);
 
-/**
- * Returns statistics about active IPs and banned count
- * @function getStats
- * @returns {Object} Statistics object
- * @returns {number} returns.activeIps - Number of active IPs being tracked
- * @returns {number} returns.bannedCount - Number of banned IPs
- */
-function getStats() {
-  return {
-    activeIps: ipTimestamps.size,
-    bannedCount: Object.keys(banned).length,
-  };
-}
-
-/**
- * @namespace rateLimiter
- * @description Main rate limiter module exports
- */
 export default {
-  /**
-   * Pre-configured rate limiter middleware instance
-   * @member {Function}
-   */
-  middleware: rateLimiterMiddleware(),
-  
-  /**
-   * Admin handler for unbanning IP addresses
-   * @member {Function}
-   */
+  rateLimiter,
   adminUnbanHandler,
-  
-  /**
-   * Function to get banned IP list
-   * @member {Function}
-   */
-  getBannedList,
-  
-  /**
-   * Function to get rate limiter statistics
-   * @member {Function}
-   */
-  getStats,
-  
-  /**
-   * Function to ban an IP programmatically
-   * @member {Function}
-   */
-  banIp,
-  
-  /**
-   * Function to unban an IP programmatically
-   * @member {Function}
-   */
-  unbanIp,
+  cleanup
 };
