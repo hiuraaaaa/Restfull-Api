@@ -54,7 +54,7 @@ export default function setupMiddleware(app) {
    * @middleware rateLimiter
    * @description Logs details of incoming API requests including IP.
    */
-  app.use(rateLimiter.middleware);
+  app.use(rateLimiter.rateLimiter);
   
   /**
    * Static file serving middleware
