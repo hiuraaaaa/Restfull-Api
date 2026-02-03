@@ -1,4 +1,5 @@
 import logger from "./logger.js";
+import telegramNotifier from "./telegramNotifier.js";
 
 /**
  * Express middleware for comprehensive API request logging with response time tracking
@@ -14,6 +15,7 @@ import logger from "./logger.js";
  * - HTTP method and path
  * - Response status code
  * - Response time in milliseconds
+ * - Sends notification to Telegram bot
  * 
  * The middleware overrides response methods to accurately capture when the response is completed
  * and calculate the exact response time from request start to response finish.
@@ -101,6 +103,7 @@ const logApiRequest = async (req, res, next) => {
    * 1. Restores the original response methods to avoid multiple log entries
    * 2. Calculates the total response time
    * 3. Logs the request details with the response time
+   * 4. Sends notification to Telegram bot
    */
   function finishRequest() {
     // Restore original response methods
@@ -115,10 +118,31 @@ const logApiRequest = async (req, res, next) => {
     const responseTime = Date.now() - startTime;
 
     /**
+     * Prepare log data
+     * @type {Object}
+     */
+    const logData = {
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      ip: req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+      userAgent: req.get('user-agent') || 'Unknown',
+      responseTime: responseTime,
+      timestamp: new Date().toISOString()
+    };
+
+    /**
      * Log the request details with formatted message
      * @example "GET /api/users [200] (45ms)"
      */
     logger.info(`${req.method} ${req.path} [${res.statusCode}] (${responseTime}ms)`);
+
+    /**
+     * Send notification to Telegram (async, non-blocking)
+     */
+    telegramNotifier.sendLog(logData).catch(err => {
+      logger.error(`Telegram notification error: ${err.message}`);
+    });
   }
 
   // Proceed to the next middleware/route handler
