@@ -62,7 +62,7 @@ const scrapeMediafire = async (url) => {
 export default {
   name: "Mediafire Scraper",
   description: "Scrape download link dan info file dari Mediafire",
-  category: "Scraper",
+  category: "Downloader",
   methods: ["GET", "POST"],
   params: ["url"],
   paramsSchema: {
