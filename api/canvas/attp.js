@@ -87,7 +87,7 @@ export default {
         frameFiles.push(framePath);
       }
 
-      const uploadDir = path.join(process.cwd(), "files");
+      const uploadDir = path.join("/tmp", "files");
       if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
       const outputFileName = crypto.randomBytes(16).toString("hex") + ".mp4";
@@ -101,6 +101,10 @@ export default {
           outputPath
         ];
 
+        // Vercel serverless functions do not have ffmpeg installed by default.
+        // This will likely cause an error 500 if ffmpeg is not available in the runtime environment.
+        // Consider using a different approach for video generation or a custom build environment.
+        console.warn("FFmpeg is not installed in the Vercel environment. Video generation will fail.");
         const ffmpeg = spawn("ffmpeg", ffmpegArgs);
         let stderr = "";
 

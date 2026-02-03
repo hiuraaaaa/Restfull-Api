@@ -16,8 +16,8 @@ import rateLimiter from '../middleware/rateLimiter.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const uploadDir = path.join(process.cwd(), "files");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+const uploadDir = path.join('/tmp', "files");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 // use multer to handle upload buffer
 const storage = multer.memoryStorage();

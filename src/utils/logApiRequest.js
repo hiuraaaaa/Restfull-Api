@@ -1,5 +1,5 @@
 import logger from "./logger.js";
-import telegramNotifier from "./telegramNotifier.js";
+import telegramNotifier from "./conditionalTelegramNotifier.js";
 
 /**
  * Express middleware for comprehensive API request logging with response time tracking

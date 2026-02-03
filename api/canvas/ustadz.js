@@ -10,7 +10,7 @@ const __dirname = dirname(__filename)
 
 const FONT_NAME = "Inter"
 const FONT_FILE = "Inter-Regular.ttf"
-const fontPath = path.join(process.cwd(), "src", "services", "canvas", "font", FONT_FILE);
+const fontPath = path.resolve(process.cwd(), "src", "services", "canvas", "font", FONT_FILE);
 
 if (fs.existsSync(fontPath)) {
   GlobalFonts.registerFromPath(fontPath, FONT_NAME);
@@ -18,7 +18,7 @@ if (fs.existsSync(fontPath)) {
   console.warn(`Font file not found at: ${fontPath}. Using fallback font.`);
 }
 
-const templatePath = path.join(process.cwd(), 'src', 'services', 'canvas', 'ustadz.png')
+const templatePath = path.resolve(process.cwd(), 'src', 'services', 'canvas', 'ustadz.png')
 
 const BOX = {
   x: 60,

@@ -4,7 +4,7 @@ import path from "path";
 import crypto from "crypto";
 
 const upload = multer({ storage: multer.memoryStorage() });
-const uploadDir = path.join(process.cwd(), "files");
+const uploadDir = path.join("/tmp", "files");
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
